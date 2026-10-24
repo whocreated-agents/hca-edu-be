@@ -358,7 +358,7 @@ the ledger"** (§7.5). Without this, every disaster recovery quietly breaks a de
 
 The live site's admission form holds historic submissions with Aadhaar (child and both parents),
 caste, income and medical data. After cutover, the old cPanel account stays alive for mail, **so that
-database does too**. I have not seen the database, only the form (`DISCOVERY` §6); access is a school
+database does too**. I have not seen the database, only the form (`DISCOVERY`, legacy admission form section); access is a school
 action. Required:
 
 1. **Now, no spend:** disable the sensitive fields on the live form (or replace it with a
@@ -859,7 +859,7 @@ I (CTO) sign off production release against LB-1 … LB-13. Any exception is wri
 > **Privacy Notice — ⟦Legal name of the school's society/trust⟧ ("the School", "we")**
 > Version ⟦1.0⟧ · Effective ⟦date⟧
 >
-> **1. Who we are.** ⟦Legal entity⟧, running Hanumangarh/Pilani ⟦confirm school name and address⟧, is responsible for the personal data described here.
+> **1. Who we are.** ⟦Legal entity⟧, running the school in Pilani ⟦confirm school name and address⟧, is responsible for the personal data described here.
 >
 > **2. Whose data.** Mostly **children**, and their parents or guardians. We treat all of it as a child's data and apply the extra care the law requires.
 >
