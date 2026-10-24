@@ -103,6 +103,15 @@ submission is therefore safe, and a flaky connection cannot produce a half-marke
 | `ContentBlock` | `key` ("home.hero", "about.mission"), `data` (JSONB), `→updatedBy`, `updatedAt` | Every public string the office can edit. Keyed, versioned, audited |
 | `SchoolProfile` | singleton: `name`, `addressLines`, `phones[]`, `email`, `hours`, `socials` (JSONB), `foundedOn` (2003-04-15), `board`, `registrationNo` | The §12 facts register as a row. `foundedOn` drives the computed years count; there is no `yearsOfService` column |
 | `Facility`, `Stat` | `title`, `description`, `order` / `label`, `value`, `order` | The 6 facilities and the 3 remaining statistics, office-editable |
+| `MediaAsset` | `fileKey`, `caption?`, `containsIdentifiableChild` *(bool, **no default**)*, `usage`, `uploadedBy`, `publishedAt?` | `usage ∈ {PUBLIC_SITE, PORTAL_ONLY, UNPUBLISHED}`. No default on the boolean, so the uploader must answer the question rather than skip it |
+| `MediaConsent` | `→MediaAsset`, `→Student`, `→Guardian`, `scope`, `grantedOn`, `evidenceFileKey?`, `recordedBy`, `withdrawnOn?`, `withdrawnReason?` | One row per child appearing in the asset. `evidenceFileKey` is the scanned, signed slip |
+
+**Consent is a constraint, not a policy note** *(added 2026-10-25)*. A `MediaAsset` with
+`containsIdentifiableChild = true` **cannot** be set to `PUBLIC_SITE` unless a live, non-withdrawn
+`MediaConsent` exists for every child tagged in it — the API rejects it rather than warning. Setting
+`withdrawnOn` immediately flips the asset to `UNPUBLISHED` and revalidates the public pages, which is
+the DPDP requirement that withdrawal be as easy as consent, made literal. Rationale, the bilingual
+consent slip and the no-consent launch fallback are in `PHOTO-CONSENT-REQUIREMENTS.md`.
 
 ---
 
@@ -192,18 +201,25 @@ critical path is gone. DNS is also closed: the school has access via **ERNET Ind
 
 Still open, all of them launch-time rather than build-time:
 
-1. **Hosting choice and spend** — on hold by board decision. Options and costs are set out in
-   `HOSTING-OPTIONS-AND-COST.md` for a decision. **Nothing has been purchased.** The build does not
-   wait on this; a developer machine or a free tier runs the same Compose file.
-2. **Logo and photography** — the school confirmed both exist and will send them. Exact formats
-   needed are listed in `HOSTING-OPTIONS-AND-COST.md` §5 so one handoff is enough. Note that any
-   photograph containing an identifiable child needs recorded guardian consent before it goes on a
-   public page — a DPDP obligation, not a preference.
+1. **Hosting choice and spend** — the board has deferred this **to launch cutover** by explicit
+   decision. Options and costs are in `HOSTING-OPTIONS-AND-COST.md`. **Nothing has been purchased.**
+   The build does not wait: a developer machine or a free tier runs the same Compose file, so the
+   decision can be made with the system already working.
+2. **Logo and photography** — the school confirmed both exist and will send them. Formats are listed
+   in `HOSTING-OPTIONS-AND-COST.md` §5. Consent for identifiable children is **not** blocking:
+   `PHOTO-CONSENT-REQUIREMENTS.md` §6 sets out a launch-ready imagery set that needs no consent at
+   all, so V1 ships either way.
 3. **Mandatory public disclosure content** — the page structure is in scope; the RBSE-mandated
    values must come from the school.
-4. **Current hosting contract** — what the school pays today for `103.108.220.145` and its mail, and
-   what must be retained for `hca.edu.in` mail to keep working after cutover. This is a question for
-   the school, and it has to be answered *before* the TLS cutover, not after.
+4. **One named grievance contact** for the privacy notice — an officer's name plus the office phone.
+   Required by the DPDP Act, and the privacy policy is launch-blocking, so this field is needed
+   regardless of the photograph question.
+5. **DNS panel access** — *(reclassified 2026-10-25, now the only human dependency in the cutover.)*
+   Records live with **SolidHosting**, not ERNET, so the change is a web form rather than a registry
+   workflow. What is needed is a one-off confirmation that someone can log in and edit a record,
+   rehearsed before launch day. The old concern — *"what does the school pay for the current host"* —
+   has dropped in priority, because `DNS-AND-EMAIL-CUTOVER.md` §3 shows mail survives the cutover
+   untouched by simply leaving the `mail` A record and MX records alone.
 
 ---
 

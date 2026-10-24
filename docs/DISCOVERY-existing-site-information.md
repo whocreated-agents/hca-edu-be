@@ -215,9 +215,14 @@ Everything in §1–§11 is "as published on the old site"; this is "as it will 
 | 11 | Leadership | Executive Director — **Mr. Kapoor Singh**<br>Managing Director — **Mr. Mahendra Singh Chahar**<br>Headmaster — **Mrs. Sharmila** | absent from old site |
 | 12 | Missing content areas (transport, uniform, calendar, faculty profiles, gallery, results data, alumni) | **Not in scope now.** Tracked as an **internal** roadmap list — *not* published on the public site (D3) | — |
 | 13 | Parent authentication | **No SMS.** Office issues a single-use activation code; the parent sets their own password. Reset by email where one is on record, office reissue otherwise. TRAI DLT registration is **out of the project entirely** | replaces the class-wise 6-digit access code *and* the earlier mobile-OTP proposal |
-| 14 | DNS for `hca.edu.in` | **Held via ERNET India**, school has access | the old site's unknown DNS custody |
+| 14 | DNS for `hca.edu.in` | **Registrar is ERNET India**, school has access. But the **nameservers are delegated to SolidHosting** (`in/eu/sg/us.solidhosting.pro`), so A and MX records are edited in a SolidHosting panel, *not* at ERNET. Verified 2026-10-25 — see `DNS-AND-EMAIL-CUTOVER.md` | the old site's unknown DNS custody |
 | 15 | Logo and photographs | **Both exist**; the school is sending the files. Required formats listed in `HOSTING-OPTIONS-AND-COST.md` §5 | the old site's empty `logo_url` and absent imagery |
-| 16 | Hosting spend | **On hold** pending board review of options and cost. **Nothing purchased.** See `HOSTING-OPTIONS-AND-COST.md` | — |
+| 16 | Hosting spend | **On hold by board decision — to be decided at launch cutover.** **Nothing purchased.** Build proceeds on local Docker Compose, which is the same configuration as production. See `HOSTING-OPTIONS-AND-COST.md` | — |
+| 17 | Current web + mail host | **Not ERNET.** `103.108.220.145` is on **Parallel Web Cloud Services** (Nashik, Maharashtra), served through **SolidHosting**, with cPanel hostname conventions (`mail.`, `webdisk.`). The hosting invoice is held by someone other than ERNET; the registrar answer was correct, the hosting answer conflated registrar with host. Verified 2026-10-25 | the assumption that ERNET hosts the site |
+| 18 | Domain term | `hca.edu.in` registered **18 June 2025**, paid through **18 June 2030**. No renewal risk in this project's horizon | — |
+| 19 | Mail path | MX → `mail.hca.edu.in` → same server. SPF additionally authorises a third-party relay, **MailBaby** (`spf-c.mailbaby.net`). DMARC is `p=none` — i.e. no anti-spoofing protection today | — |
+| 20 | Photograph consent | **Not known** whether guardian consent was recorded. Requirements, a bilingual consent slip, the system-level enforcement and a no-consent launch fallback are set out in `PHOTO-CONSENT-REQUIREMENTS.md`. **Not launch-blocking** — V1 can launch on imagery containing no identifiable child | — |
+| 21 | Git | **Board approved committing the planning documents** (2026-10-24). Repository initialised with its first commit 2026-10-25 | the previously uncommitted working tree |
 
 ### Derived corrections to carry into content
 
@@ -241,10 +246,13 @@ Everything in §1–§11 is "as published on the old site"; this is "as it will 
    collection remain **open** and are carried into the security baseline, not closed by these answers.
    A second DPDP item is now added: **photographs of identifiable children need recorded guardian
    consent** before appearing on a public page.
-6. **Mail must survive the cutover.** *(Added 2026-10-25.)* `hca.edu.in` mail currently lives on the
-   old host, and email is now load-bearing — it is the parent password-reset channel. Pointing the
-   A record at a new server while preserving the **MX records** is a hard requirement of the launch
-   runbook, not a detail. Verify before cutover day.
+6. **Mail must survive the cutover — and it can, cheaply.** *(Added 2026-10-25, resolved the same
+   day.)* `hca.edu.in` mail lives on the old host, and email is now load-bearing as the parent
+   password-reset channel. The MX record points at the *hostname* `mail.hca.edu.in` rather than a
+   bare IP, which means the website can move while mail stays exactly where it is: change the apex
+   and `www` A records, leave the `mail` A record and MX untouched. The real risk is **sending**, not
+   receiving — the new server must be added to SPF in the same edit, or reset emails land in spam.
+   Full sequence in `DNS-AND-EMAIL-CUTOVER.md`.
 
 ---
 
