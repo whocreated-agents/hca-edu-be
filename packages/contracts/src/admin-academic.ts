@@ -106,7 +106,7 @@ export const adminAcademicRoutes = {
   }),
 
   classLevels: route({
-    method: 'GET', path: '/admin/class-levels', access: roles(ADMIN_READ), summary: 'The 14 seeded levels.', response: z.array(ClassLevelDto),
+    method: 'GET', path: '/admin/class-levels', access: roles(ADMIN_READ), summary: 'The 13 seeded levels.', response: z.array(ClassLevelDto),
   }),
   updateClassLevel: route({
     method: 'PATCH', path: '/admin/class-levels/:id', access: roles(ADMIN_WRITE),

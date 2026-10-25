@@ -49,7 +49,7 @@ export const InvoiceGenerate = z.strictObject({
   /** Which structure rows to bill. Empty/omitted = every head in the class's structure matching `frequencies`. */
   feeHeadIds: z.array(Uuid).max(20).optional(),
   /** Scope. Exactly one of: classLevelIds, sectionIds, studentIds (office-triggered, never automatic). */
-  classLevelIds: z.array(Uuid).max(14).optional(),
+  classLevelIds: z.array(Uuid).max(13).optional(),
   sectionIds: z.array(Uuid).max(60).optional(),
   studentIds: z.array(Uuid).max(500).optional(),
 }).refine((v) => [v.classLevelIds, v.sectionIds, v.studentIds].filter((x) => x && x.length).length === 1, {

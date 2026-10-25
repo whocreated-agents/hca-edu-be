@@ -168,7 +168,7 @@ export const publicRoutes = {
   session: route({ method: 'GET', path: '/public/session', access: publicAccess, summary: 'Running session and admission-open session.', response: PublicSession }),
   classLevels: route({
     method: 'GET', path: '/public/class-levels', access: publicAccess,
-    summary: 'The 14 class levels, for the enquiry form dropdown.', response: z.array(ClassLevelDto),
+    summary: 'The 13 class levels, for the enquiry form dropdown.', response: z.array(ClassLevelDto),
   }),
   createEnquiry: route({
     method: 'POST', path: '/public/enquiries', access: publicAccess, sensitive: true,
