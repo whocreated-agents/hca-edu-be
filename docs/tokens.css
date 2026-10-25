@@ -1,0 +1,150 @@
+/**
+ * HCA Design System - CSS Custom Properties
+ * Canonical Source of Truth for Design Tokens
+ * Strictly token-only UI: no raw hex or random magic pixel values.
+ */
+
+:root {
+  /* Brand Primary */
+  --hca-brand-primary-50: #EFF6FF;
+  --hca-brand-primary-100: #DBEAFE;
+  --hca-brand-primary-500: #3B82F6;
+  --hca-brand-primary-600: #2563EB;
+  --hca-brand-primary-700: #1D4ED8;
+  --hca-brand-primary-800: #1E3A8A;
+  --hca-brand-primary-900: #0F294A;
+
+  /* Brand Accent */
+  --hca-brand-accent-50: #FFFBEB;
+  --hca-brand-accent-100: #FEF3C7;
+  --hca-brand-accent-500: #F59E0B;
+  --hca-brand-accent-600: #D97706;
+  --hca-brand-accent-700: #B45309;
+
+  /* Semantic Surfaces */
+  --surface-base: #FFFFFF;
+  --surface-subtle: #F8FAFC;
+  --surface-card: #FFFFFF;
+  --surface-elevated: #FFFFFF;
+  --surface-muted: #F1F5F9;
+  --surface-dark: #0F172A;
+
+  /* Semantic Text (All WCAG AA/AAA compliant) */
+  --text-primary: #0F172A;   /* 15.6:1 on white */
+  --text-secondary: #475569; /* 5.8:1 on white */
+  --text-muted: #64748B;     /* 4.6:1 on white */
+  --text-inverse: #FFFFFF;   /* 15.6:1 on dark */
+  --text-brand: #1E3A8A;     /* 9.1:1 on white */
+
+  /* Borders */
+  --border-subtle: #E2E8F0;
+  --border-standard: #CBD5E1;
+  --border-strong: #94A3B8;
+  --border-focus: #2563EB;
+
+  /* Status Colors */
+  --status-success-base: #16A34A;
+  --status-success-bg: #DCFCE7;
+  --status-success-text: #14532D;
+  --status-success-border: #86EFAC;
+
+  --status-warning-base: #D97706;
+  --status-warning-bg: #FEF3C7;
+  --status-warning-text: #78350F;
+  --status-warning-border: #FCD34D;
+
+  --status-error-base: #DC2626;
+  --status-error-bg: #FEE2E2;
+  --status-error-text: #7F1D1D;
+  --status-error-border: #FCA5A5;
+
+  --status-info-base: #0284C7;
+  --status-info-bg: #E0F2FE;
+  --status-info-text: #0C4A6E;
+  --status-info-border: #7DD3FC;
+
+  /* Attendance Quick-Action States */
+  --attendance-present-bg: #DCFCE7;
+  --attendance-present-text: #15803D;
+  --attendance-present-border: #86EFAC;
+  --attendance-present-active: #16A34A;
+
+  --attendance-absent-bg: #FEE2E2;
+  --attendance-absent-text: #B91C1C;
+  --attendance-absent-border: #FCA5A5;
+  --attendance-absent-active: #DC2626;
+
+  --attendance-late-bg: #FEF3C7;
+  --attendance-late-text: #B45309;
+  --attendance-late-border: #FCD34D;
+  --attendance-late-active: #D97706;
+
+  --attendance-leave-bg: #EEF2FF;
+  --attendance-leave-text: #4338CA;
+  --attendance-leave-border: #A5B4FC;
+  --attendance-leave-active: #4F46E5;
+
+  /* Typography Scale */
+  --font-family-sans: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans Devanagari', sans-serif;
+  --font-family-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  --font-size-xs: 0.75rem;    /* 12px */
+  --font-size-sm: 0.875rem;   /* 14px */
+  --font-size-base: 1rem;     /* 16px */
+  --font-size-lg: 1.125rem;   /* 18px */
+  --font-size-xl: 1.25rem;    /* 20px */
+  --font-size-2xl: 1.5rem;    /* 24px */
+  --font-size-3xl: 1.875rem;  /* 30px */
+  --font-size-4xl: 2.25rem;   /* 36px */
+  --font-size-5xl: 3rem;      /* 48px */
+
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  --line-height-tight: 1.15;
+  --line-height-snug: 1.375;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.625;
+
+  /* Spacing Scale (4px base) */
+  --space-0: 0px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+  --space-24: 96px;
+
+  /* Border Radii */
+  --radius-none: 0px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 9999px;
+
+  /* Elevation & Shadows */
+  --shadow-none: none;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+  --shadow-focus: 0 0 0 3px rgba(37, 99, 235, 0.4);
+
+  /* Touch Targets (WCAG 2.1 AA) */
+  --touch-target-min: 44px;
+  --touch-target-comfortable: 48px;
+
+  /* Motion & Transitions */
+  --duration-fast: 150ms;
+  --duration-normal: 200ms;
+  --duration-slow: 300ms;
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+}
