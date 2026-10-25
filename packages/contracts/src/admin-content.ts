@@ -130,7 +130,7 @@ export const MediaUploadFields = z.strictObject({
 export const MediaUpdate = z.strictObject({
   caption: z.string().trim().max(300).nullable().optional(),
   containsIdentifiableChild: z.boolean().optional(),
-  /** 422 CONSENT_REQUIRED if PUBLIC_SITE is requested while a tagged child lacks a live consent. */
+  /** 422 MEDIA_CONSENT_REQUIRED if PUBLIC_SITE is requested while a tagged child lacks a live consent. */
   usage: MediaUsage.optional(),
 });
 
@@ -199,7 +199,7 @@ export const adminContentRoutes = {
   }),
   updateMedia: route({
     method: 'PATCH', path: '/admin/media/:id', access: roles(WRITE),
-    summary: 'Caption / flag / usage. Rejects PUBLIC_SITE for an identifiable child without live consent for every tagged child (422 CONSENT_REQUIRED).',
+    summary: 'Caption / flag / usage. Rejects PUBLIC_SITE for an identifiable child without live consent for every tagged child (422 MEDIA_CONSENT_REQUIRED).',
     params: IdParam, body: MediaUpdate, response: MediaAssetDto,
   }),
   deleteMedia: route({ method: 'DELETE', path: '/admin/media/:id', access: roles(WRITE), summary: 'Delete the asset and file.', params: IdParam }),

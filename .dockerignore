@@ -1,0 +1,16 @@
+**/node_modules
+**/dist
+**/.next
+**/*.tsbuildinfo
+.git
+.env
+.env.*
+!.env.example
+.paperclip
+.paperclip-repositories
+.claude
+docs
+coverage
+*.md
+Dockerfile
+docker-compose.yml

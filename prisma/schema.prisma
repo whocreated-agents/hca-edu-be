@@ -223,7 +223,7 @@ enum ClassStage {
   SECONDARY
 }
 
-/// The 14 intake levels, seeded: Nursery, LKG, UKG, Class I .. Class X.
+/// The 13 intake levels, seeded: Nursery, LKG, UKG, Class I .. Class X (docs say 14; see PR notes).
 model ClassLevel {
   id     String     @id @default(uuid()) @db.Uuid
   name   String     @unique
