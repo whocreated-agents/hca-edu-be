@@ -1,5 +1,5 @@
 {
-  "name": "hca-edu",
+  "name": "hca-edu-be",
   "private": true,
   "version": "0.1.0",
   "license": "UNLICENSED",
@@ -11,8 +11,8 @@
     "apps/*"
   ],
   "scripts": {
-    "build": "npm run build -w @hca/contracts && npm run build -w @hca/api && npm run build -w @hca/web",
-    "typecheck": "npm run build -w @hca/contracts && npm run typecheck -w @hca/api && npm run typecheck -w @hca/web",
+    "build": "npm run build -w @hca/contracts && npm run build -w @hca/api",
+    "typecheck": "npm run build -w @hca/contracts && npm run typecheck -w @hca/api",
     "lint": "eslint .",
     "test": "npm run test -w @hca/contracts && npm run test -w @hca/api",
     "db:generate": "prisma generate",
