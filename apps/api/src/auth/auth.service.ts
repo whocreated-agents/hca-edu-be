@@ -109,11 +109,16 @@ export class AuthService {
   }
 
   private async recordFailure(u: User): Promise<void> {
-    const failed = u.failedAttempts + 1;
-    if (failed >= LOGIN_MAX_FAILURES) {
-      await this.prisma.user.update({ where: { id: u.id }, data: { failedAttempts: 0, lockedUntil: new Date(Date.now() + LOGIN_LOCKOUT_MINUTES * MIN) } });
-    } else {
-      await this.prisma.user.update({ where: { id: u.id }, data: { failedAttempts: { increment: 1 } } });
+    const updated = await this.prisma.user.update({
+      where: { id: u.id },
+      data: { failedAttempts: { increment: 1 } },
+      select: { failedAttempts: true },
+    });
+    if (updated.failedAttempts >= LOGIN_MAX_FAILURES) {
+      await this.prisma.user.update({
+        where: { id: u.id },
+        data: { failedAttempts: 0, lockedUntil: new Date(Date.now() + LOGIN_LOCKOUT_MINUTES * MIN) },
+      });
     }
   }
 

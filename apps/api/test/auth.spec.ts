@@ -46,6 +46,21 @@ describe('auth', () => {
     expect(wrong.headers['content-type']).toMatch(/problem\+json/);
   });
 
+  it('locks the account after concurrent failed attempts without losing lockout to race conditions', async () => {
+    await activateParent(h, w, w.familyA);
+    const results = await Promise.all(
+      Array.from({ length: LOGIN_MAX_FAILURES }, () =>
+        h.http().post('/api/v1/auth/login').send({ identifier: w.familyA.phone, password: 'wrong-concurrent' })
+      )
+    );
+    for (const r of results) expect([401, 423]).toContain(r.status);
+    const user = await h.prisma.user.findUniqueOrThrow({ where: { id: w.familyA.userId } });
+    expect(user.lockedUntil).not.toBeNull();
+    expect(user.lockedUntil!.getTime()).toBeGreaterThan(Date.now());
+    const next = await h.http().post('/api/v1/auth/login').send({ identifier: w.familyA.phone, password: PASSWORD }).expect(423);
+    expect((next.body as Body).code).toBe('ACCOUNT_LOCKED');
+  });
+
   it('locks the account after repeated failures, even for the right password', async () => {
     await activateParent(h, w, w.familyA);
     for (let i = 0; i < LOGIN_MAX_FAILURES; i++) await h.http().post('/api/v1/auth/login').send({ identifier: w.familyA.phone, password: 'wrong-wrong' }).expect(401);

@@ -25,6 +25,8 @@ export async function startApp(over: Record<string, string> = {}) {
   });
   const app: NestExpressApplication = await createApp(config);
   await app.init();
+  const server = app.getHttpServer() as any;
+  if (server && typeof server.setMaxListeners === 'function') server.setMaxListeners(50);
   return {
     app,
     http: () => request(app.getHttpServer()),
