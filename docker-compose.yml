@@ -1,0 +1,73 @@
+# Local dev stack. Every ${VAR:-default} fallback is a DEV-ONLY value; production must override all of them.
+name: hca
+
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-hca}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dev-only-postgres-password}
+      POSTGRES_DB: ${POSTGRES_DB:-hca}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    ports:
+      - "8025:8025" # web UI
+      - "1025:1025" # SMTP
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      API_PORT: 3001
+      DATABASE_URL: postgresql://${POSTGRES_USER:-hca}:${POSTGRES_PASSWORD:-dev-only-postgres-password}@db:5432/${POSTGRES_DB:-hca}?schema=public
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-only-access-secret-change-me-0123456789abcdef}
+      TOKEN_PEPPER: ${TOKEN_PEPPER:-dev-only-token-pepper-change-me-0123456789abcdef}
+      WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      SMTP_HOST: ${SMTP_HOST:-mailpit}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-HCA Portal <no-reply@hca.local>}
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-admin@hca.local}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-dev-only-admin-password}
+    ports:
+      - "3001:3001"
+    volumes:
+      - uploads:/app/storage
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        API_INTERNAL_URL: http://api:3001
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      API_INTERNAL_URL: http://api:3001
+    ports:
+      - "3000:3000"
+
+volumes:
+  pgdata:
+  uploads:

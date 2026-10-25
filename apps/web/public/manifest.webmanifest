@@ -1,0 +1,9 @@
+{
+  "name": "HCA Portal",
+  "short_name": "HCA Portal",
+  "start_url": "/portal",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff"
+}

@@ -1,0 +1,39 @@
+{
+  "name": "@hca/api",
+  "version": "1.0.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "start": "node dist/main.js",
+    "dev": "tsx watch src/main.ts",
+    "test": "jest --runInBand"
+  },
+  "dependencies": {
+    "@hca/contracts": "*",
+    "@nestjs/common": "^11.1.0",
+    "@nestjs/core": "^11.1.0",
+    "@nestjs/platform-express": "^11.1.0",
+    "@nestjs/schedule": "^6.0.0",
+    
+    "cookie-parser": "^1.4.7",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.3",
+    "nodemailer": "^7.0.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2"
+  },
+  "devDependencies": {
+    "@nestjs/testing": "^11.1.0",
+    "@types/cookie-parser": "^1.4.9",
+    "@types/express": "^5.0.0",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/jest": "^30.0.0",
+    "@types/nodemailer": "^7.0.0",
+    "@types/supertest": "^6.0.3",
+    "jest": "^30.2.0",
+    "supertest": "^7.1.0",
+    "ts-jest": "^29.4.0"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "name": "@hca/contracts",
+  "version": "1.0.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "test": "jest"
+  },
+  "dependencies": { "zod": "^4.1.0" },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "jest": "^30.2.0",
+    "ts-jest": "^29.4.0"
+  }
+}
