@@ -1,0 +1,44 @@
+{
+  "name": "hca-edu",
+  "private": true,
+  "version": "0.1.0",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=22"
+  },
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "npm run build -w @hca/contracts && npm run build -w @hca/api && npm run build -w @hca/web",
+    "typecheck": "npm run build -w @hca/contracts && npm run typecheck -w @hca/api && npm run typecheck -w @hca/web",
+    "lint": "eslint .",
+    "test": "npm run test -w @hca/contracts && npm run test -w @hca/api",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate deploy",
+    "db:seed": "prisma db seed"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.0",
+    "eslint": "^9.39.0",
+    "prisma": "~6.19.3",
+    "tsx": "^4.20.0",
+    "typescript": "~5.9.0",
+    "typescript-eslint": "^8.46.0",
+    "@types/node": "^22.19.0"
+  },
+  "dependencies": {
+    "@prisma/client": "~6.19.3",
+    "argon2": "^0.44.0"
+  },
+  "allowScripts": {
+    "@prisma/client@6.19.3": true,
+    "argon2@0.44.0": true,
+    "prisma@6.19.3": true,
+    "@prisma/engines@6.19.3": true,
+    "esbuild@0.28.2": true,
+    "unrs-resolver@1.12.2": true,
+    "@parcel/watcher": false
+  }
+}

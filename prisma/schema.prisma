@@ -1,7 +1,9 @@
 // HCA — canonical data contract
 //
-// Issue WHO-2 · Phase 3 (contract lock) · derived from BLUEPRINT-001-system-design.md §2
-// Status: PROPOSED — not yet locked. See docs/PROJECT_PLAN-001.md §3 for what locking means.
+// Issue WHO-3 · Phase 3 (contract lock) · derived from BLUEPRINT-001-system-design.md §2
+// Status: LOCKED at migration 20261025000000_init. Changes after this point are new migrations;
+// a change to a column surfaced by @hca/contracts is a versioned contract change.
+// Every deviation from the WHO-2 draft, with the reason, is in docs/CONTRACT-LOCK-001.md.
 //
 // Invariants this file enforces structurally (BLUEPRINT-001 §1):
 //   1. No session year, fee amount, phone number or statistic is hardcoded anywhere. All of it is
@@ -13,6 +15,9 @@
 //   4. Sensitive data is a separate table with its own access path, never joined into a general
 //      student read.
 //   5. Public content has exactly one source of truth.
+//
+// Constraints Prisma cannot express (partial unique indexes, CHECKs, the audit-log trigger) live in
+// the migration SQL and are listed in CONTRACT-LOCK-001 section 3.
 
 generator client {
   provider = "prisma-client-js"
@@ -46,28 +51,45 @@ enum UserStatus {
 /// staff and admin with email. Every role uses a password (argon2id) -- there is no
 /// SMS OTP anywhere in this system, by board decision.
 model User {
-  id             String     @id @default(uuid()) @db.Uuid
-  role           Role
-  status         UserStatus @default(INVITED)
-  /// Parent username. E.164 without the +91, i.e. 10 digits.
-  phone          String?    @unique
+  id              String     @id @default(uuid()) @db.Uuid
+  role            Role
+  status          UserStatus @default(INVITED)
+  /// Parent username. 10 digits, no country code, no leading zero.
+  phone           String?    @unique
   /// Staff/admin username, and the parent self-service password-reset channel.
-  email          String?    @unique
-  passwordHash   String?
-  failedAttempts Int        @default(0)
-  lockedUntil    DateTime?
-  lastLoginAt    DateTime?
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
+  /// NOT unique at column level: two parents of one family routinely share an address and parents
+  /// sign in by phone anyway. Uniqueness for non-PARENT roles is a partial index in the migration.
+  email           String?
+  /// Reset links go ONLY to a verified address, otherwise a typo at first login would mail a
+  /// recovery link to a stranger. Office-entered addresses are stamped verified at entry.
+  emailVerifiedAt DateTime?
+  passwordHash    String?
+  /// Bumped on password change, code reissue and suspension. Embedded in the access token, so
+  /// those events invalidate outstanding access tokens immediately instead of after the TTL.
+  authEpoch       Int        @default(0)
+  failedAttempts  Int        @default(0)
+  lockedUntil     DateTime?
+  lastLoginAt     DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
 
   staff               Staff?
   guardian            Guardian?
-  activationCodes     ActivationCode[]
+  activationCodes     ActivationCode[]     @relation("CodeOwner")
+  issuedCodes         ActivationCode[]     @relation("CodeIssuer")
   passwordResetTokens PasswordResetToken[]
   refreshTokens       RefreshToken[]
   auditLogs           AuditLog[]
+  attendanceMarks     AttendanceDay[]
+  feePaymentsRecorded FeePayment[]
+  decidedApplications Application[]
+  noticesCreated      Notice[]
+  mediaUploaded       MediaAsset[]
+  consentsRecorded    MediaConsent[]
+  sensitiveConsents   StudentSensitive[]
 
   @@index([role, status])
+  @@index([email])
 }
 
 /// The office-issued bootstrap, NOT a credential. Ten characters from an unambiguous
@@ -80,28 +102,40 @@ model User {
 model ActivationCode {
   id         String    @id @default(uuid()) @db.Uuid
   userId     String    @db.Uuid
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user       User      @relation("CodeOwner", fields: [userId], references: [id], onDelete: Cascade)
   codeHash   String
   issuedById String    @db.Uuid
+  issuedBy   User      @relation("CodeIssuer", fields: [issuedById], references: [id])
   expiresAt  DateTime
   consumedAt DateTime?
+  /// Set on every outstanding code when a newer one is issued, so only the latest slip works.
+  revokedAt  DateTime?
   createdAt  DateTime  @default(now())
 
   @@index([userId, consumedAt])
 }
 
-/// Email path only. One-hour TTL, single use. Requires an email on the User or the linked
-/// Guardian -- which is why first login prompts a parent to add one.
+enum EmailTokenPurpose {
+  PASSWORD_RESET
+  VERIFY_EMAIL
+}
+
+/// Email path only. One-hour TTL, single use. Requires a VERIFIED email on the User -- which is why
+/// first login prompts a parent to add one. The same table carries the verify-email link so both
+/// flows share one hashing / expiry / single-use implementation.
 model PasswordResetToken {
-  id         String    @id @default(uuid()) @db.Uuid
-  userId     String    @db.Uuid
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tokenHash  String    @unique
+  id         String            @id @default(uuid()) @db.Uuid
+  userId     String            @db.Uuid
+  user       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purpose    EmailTokenPurpose @default(PASSWORD_RESET)
+  /// The address the link was sent to; a VERIFY_EMAIL token marks exactly this address verified.
+  sentTo     String
+  tokenHash  String            @unique
   expiresAt  DateTime
   consumedAt DateTime?
-  createdAt  DateTime  @default(now())
+  createdAt  DateTime          @default(now())
 
-  @@index([userId, consumedAt])
+  @@index([userId, purpose, consumedAt])
 }
 
 /// Rotating. Presenting an already-revoked token revokes the entire family -- the standard
@@ -113,6 +147,9 @@ model RefreshToken {
   tokenHash String    @unique
   familyId  String    @db.Uuid
   userAgent String?
+  /// 90-day "remembered device" tokens are sliding: each rotation issues a fresh window. A
+  /// non-remembered session gets a 24h window instead.
+  remember  Boolean   @default(false)
   expiresAt DateTime
   revokedAt DateTime?
   createdAt DateTime  @default(now())
@@ -121,7 +158,8 @@ model RefreshToken {
   @@index([familyId])
 }
 
-/// Append-only. Every admin mutation, and every read of StudentSensitive.
+/// Append-only -- UPDATE and DELETE are rejected by a trigger in the migration, not by convention.
+/// Every admin mutation, and every read of StudentSensitive.
 model AuditLog {
   id       String   @id @default(uuid()) @db.Uuid
   actorId  String?  @db.Uuid
@@ -153,7 +191,7 @@ enum SessionState {
 /// year is hardcoded anywhere in the system.
 ///
 /// Two partial unique indexes are required and cannot be expressed in Prisma schema syntax --
-/// they live in the migration (see PROJECT_PLAN-001 §3.2):
+/// they live in the migration:
 ///   CREATE UNIQUE INDEX one_running_session ON "AcademicSession" (state) WHERE state = 'RUNNING';
 ///   CREATE UNIQUE INDEX one_open_intake ON "AcademicSession" ("isAdmissionOpen") WHERE "isAdmissionOpen";
 model AcademicSession {
@@ -167,12 +205,13 @@ model AcademicSession {
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
-  sections      Section[]
-  enrollments   Enrollment[]
-  feeStructures FeeStructure[]
-  feeInvoices   FeeInvoice[]
-  holidays      Holiday[]
-  enquiries     Enquiry[]
+  sections       Section[]
+  enrollments    Enrollment[]
+  feeStructures  FeeStructure[]
+  feeInvoices    FeeInvoice[]
+  holidays       Holiday[]
+  enquiries      Enquiry[]
+  receiptCounter ReceiptCounter?
 
   @@index([state])
 }
@@ -196,20 +235,18 @@ model ClassLevel {
   sections      Section[]
   feeStructures FeeStructure[]
   enquiries     Enquiry[]
-
-  @@index([order])
 }
 
 /// Sections are per-session, so last year's roster can never leak into this year's.
 model Section {
-  id             String  @id @default(uuid()) @db.Uuid
-  classLevelId   String  @db.Uuid
-  classLevel     ClassLevel @relation(fields: [classLevelId], references: [id])
-  sessionId      String  @db.Uuid
+  id             String          @id @default(uuid()) @db.Uuid
+  classLevelId   String          @db.Uuid
+  classLevel     ClassLevel      @relation(fields: [classLevelId], references: [id])
+  sessionId      String          @db.Uuid
   session        AcademicSession @relation(fields: [sessionId], references: [id])
   name           String
-  classTeacherId String? @db.Uuid
-  classTeacher   Staff?  @relation(fields: [classTeacherId], references: [id], onDelete: SetNull)
+  classTeacherId String?         @db.Uuid
+  classTeacher   Staff?          @relation(fields: [classTeacherId], references: [id], onDelete: SetNull)
 
   enrollments     Enrollment[]
   subjectTeachers SectionSubjectTeacher[]
@@ -217,6 +254,9 @@ model Section {
   targetedNotices NoticeTarget[]
 
   @@unique([sessionId, classLevelId, name])
+  /// Target of the composite FK from Enrollment, which makes "enrolled in a section of a different
+  /// session than the enrollment claims" unrepresentable.
+  @@unique([id, sessionId])
   @@index([classTeacherId])
 }
 
@@ -231,16 +271,14 @@ model Staff {
   joinedOn     DateTime @db.Date
   isActive     Boolean  @default(true)
 
-  classTeacherOf  Section[]
-  subjectsTaught  SectionSubjectTeacher[]
-  attendanceMarks AttendanceDay[]
-  feePayments     FeePayment[]
+  classTeacherOf Section[]
+  subjectsTaught SectionSubjectTeacher[]
 
   @@index([isActive])
 }
 
 /// Distinguishes a subject teacher from the class teacher, which the attendance guard needs:
-/// only the class teacher marks the register.
+/// only the class teacher marks the register; a subject teacher may read the roster.
 model SectionSubjectTeacher {
   id        String  @id @default(uuid()) @db.Uuid
   sectionId String  @db.Uuid
@@ -257,52 +295,74 @@ model SectionSubjectTeacher {
 // Students and guardians
 // ---------------------------------------------------------------------------
 
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
 enum StudentStatus {
   ACTIVE
   TRANSFERRED_OUT
   ALUMNUS
 }
 
+/// Students are never hard-deleted: every relation that carries money or attendance is RESTRICT, so
+/// attempting it fails loudly instead of silently taking a ledger with it. Leaving the school is a
+/// status change.
 model Student {
-  id          String        @id @default(uuid()) @db.Uuid
-  admissionNo String        @unique
-  fullName    String
-  dob         DateTime      @db.Date
-  gender      String
-  bloodGroup  String?
+  id            String       @id @default(uuid()) @db.Uuid
+  admissionNo   String       @unique
+  fullName      String
+  dob           DateTime     @db.Date
+  gender        Gender
+  bloodGroup    String?
+  /// Traceability to the application the seat came from; null for students migrated in.
+  applicationId String?      @unique @db.Uuid
+  application   Application? @relation(fields: [applicationId], references: [id])
   /// Private-storage key, served only via short-lived signed URLs. Never a public path.
-  photoKey    String?
-  status      StudentStatus @default(ACTIVE)
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  photoKey      String?
+  status        StudentStatus @default(ACTIVE)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 
-  enrollments      Enrollment[]
-  guardians        StudentGuardian[]
-  sensitive        StudentSensitive?
-  feeInvoices      FeeInvoice[]
-  attendanceEntry  AttendanceEntry[]
-  mediaConsents    MediaConsent[]
+  enrollments       Enrollment[]
+  guardians         StudentGuardian[]
+  sensitive         StudentSensitive?
+  feeInvoices       FeeInvoice[]
+  attendanceEntries AttendanceEntry[]
+  mediaConsents     MediaConsent[]
 
   @@index([status])
   @@index([fullName])
 }
 
+enum EnrollmentState {
+  ACTIVE
+  WITHDRAWN
+  COMPLETED
+}
+
 /// One row per student per session. Promotion creates a new row; history is preserved rather
 /// than overwritten, which is what makes a past year's attendance or fee report still truthful.
 model Enrollment {
-  id        String   @id @default(uuid()) @db.Uuid
-  studentId String   @db.Uuid
-  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  sectionId String   @db.Uuid
-  section   Section  @relation(fields: [sectionId], references: [id])
-  sessionId String   @db.Uuid
+  id        String          @id @default(uuid()) @db.Uuid
+  studentId String          @db.Uuid
+  student   Student         @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  sectionId String          @db.Uuid
+  sessionId String          @db.Uuid
+  /// Composite FK: the section must belong to this very session.
+  section   Section         @relation(fields: [sectionId, sessionId], references: [id, sessionId])
   session   AcademicSession @relation(fields: [sessionId], references: [id])
   rollNo    Int
-  createdAt DateTime @default(now())
+  /// BLUEPRINT-001 §2.3 lists `state`; the draft omitted it. WITHDRAWN keeps the row (and the
+  /// roll number) so past reports stay truthful but drops the child from the live roster.
+  state     EnrollmentState @default(ACTIVE)
+  createdAt DateTime        @default(now())
 
   @@unique([studentId, sessionId])
   @@unique([sectionId, rollNo])
-  @@index([sectionId])
+  @@index([sectionId, state])
 }
 
 model Guardian {
@@ -335,22 +395,25 @@ model StudentGuardian {
   @@index([guardianId])
 }
 
-/// The stage-3 tier. pgcrypto-encrypted at rest, OFFICE+ only, behind its own guard, every read
-/// written to AuditLog. Never joined into a general student read.
+/// The stage-3 tier. Encrypted at rest, OFFICE+ only, behind its own guard, every read written to
+/// AuditLog. Never joined into a general student read.
 ///
 /// Monthly parental income is deliberately absent: it failed data minimisation on the old form
 /// and drives no feature. If a fee concession is introduced it belongs in a concession
 /// application, which is both cleaner and more honest.
 model StudentSensitive {
-  id               String   @id @default(uuid()) @db.Uuid
-  studentId        String   @unique @db.Uuid
-  student          Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  aadhaarEnc       Bytes?
-  category         String?
-  medicalNotesEnc  Bytes?
+  id                String   @id @default(uuid()) @db.Uuid
+  studentId         String   @unique @db.Uuid
+  student           Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  /// AES-256-GCM applied in the API (key from env, never in SQL text or query logs) rather than
+  /// via pgcrypto -- see CONTRACT-LOCK-001 D-12. Layout: version(1) | iv(12) | tag(16) | ciphertext.
+  aadhaarEnc        Bytes?
+  category          String?
+  medicalNotesEnc   Bytes?
   consentRecordedAt DateTime
-  consentBy        String
-  updatedAt        DateTime @updatedAt
+  consentById       String   @db.Uuid
+  consentBy         User     @relation(fields: [consentById], references: [id])
+  updatedAt         DateTime @updatedAt
 }
 
 // ---------------------------------------------------------------------------
@@ -367,20 +430,23 @@ enum EnquiryState {
 /// Stage 1: the six-field public CTA. No sensitive data reaches this table, ever -- that is the
 /// whole point of splitting the old single monolithic public form.
 model Enquiry {
-  id           String       @id @default(uuid()) @db.Uuid
+  id           String          @id @default(uuid()) @db.Uuid
   childName    String
-  classLevelId String       @db.Uuid
-  classLevel   ClassLevel   @relation(fields: [classLevelId], references: [id])
+  classLevelId String          @db.Uuid
+  classLevel   ClassLevel      @relation(fields: [classLevelId], references: [id])
   parentName   String
   phone        String
   email        String?
-  locality     String?
-  sessionId    String       @db.Uuid
+  /// Required: it is one of the six public fields (BLUEPRINT-001 §2.4); the draft had it optional.
+  locality     String
+  /// Assigned by the server from the admission-open session, never accepted from the browser.
+  sessionId    String          @db.Uuid
   session      AcademicSession @relation(fields: [sessionId], references: [id])
-  state        EnquiryState @default(NEW)
-  createdAt    DateTime     @default(now())
+  state        EnquiryState    @default(NEW)
+  createdAt    DateTime        @default(now())
 
-  application Application?
+  application  Application?
+  accessTokens ApplicationAccessToken[]
 
   @@index([state, createdAt])
   @@index([phone])
@@ -401,7 +467,7 @@ model Application {
   enquiry          Enquiry           @relation(fields: [enquiryId], references: [id])
   applicationNo    String            @unique
   childDob         DateTime          @db.Date
-  gender           String
+  gender           Gender
   address          Json
   parentDetails    Json
   previousSchool   Json?
@@ -410,11 +476,31 @@ model Application {
   status           ApplicationStatus @default(SUBMITTED)
   decidedAt        DateTime?
   decidedById      String?           @db.Uuid
+  decidedBy        User?             @relation(fields: [decidedById], references: [id])
+  /// Reason for REJECTED; office-only, never shown on the public site.
+  decisionNote     String?
   createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
 
   documents ApplicationDocument[]
+  student   Student?
 
   @@index([status, createdAt])
+}
+
+/// Stage-2 access. ADR-001 specifies a tokenised link (long random token, 30-day TTL, scoped to
+/// exactly one application) in place of the dropped OTP; the draft schema had no table for it.
+/// Only a SHA-256 of the token is stored; the link itself is the credential and is shown once.
+model ApplicationAccessToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  enquiryId String    @db.Uuid
+  enquiry   Enquiry   @relation(fields: [enquiryId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([enquiryId])
 }
 
 enum DocumentKind {
@@ -458,20 +544,21 @@ model FeeHead {
   isRecurring Boolean @default(true)
 
   structures FeeStructure[]
+  lines      FeeInvoiceLine[]
 }
 
 /// Admin-entered. No amount ships in code or in a seed -- board decision 9.
 model FeeStructure {
-  id            String       @id @default(uuid()) @db.Uuid
-  classLevelId  String       @db.Uuid
-  classLevel    ClassLevel   @relation(fields: [classLevelId], references: [id])
-  sessionId     String       @db.Uuid
+  id            String          @id @default(uuid()) @db.Uuid
+  classLevelId  String          @db.Uuid
+  classLevel    ClassLevel      @relation(fields: [classLevelId], references: [id])
+  sessionId     String          @db.Uuid
   session       AcademicSession @relation(fields: [sessionId], references: [id])
-  feeHeadId     String       @db.Uuid
-  feeHead       FeeHead      @relation(fields: [feeHeadId], references: [id])
-  /// Rupees. Integer paise would be defensible; Decimal is chosen so the office sees exactly
-  /// what it typed.
-  amount        Decimal      @db.Decimal(10, 2)
+  feeHeadId     String          @db.Uuid
+  feeHead       FeeHead         @relation(fields: [feeHeadId], references: [id])
+  /// Rupees. Decimal rather than integer paise so the office sees exactly what it typed; money
+  /// crosses the API as a decimal STRING, never a JS number.
+  amount        Decimal         @db.Decimal(10, 2)
   frequency     FeeFrequency
   dueDayOfMonth Int?
 
@@ -486,21 +573,39 @@ enum InvoiceStatus {
 }
 
 model FeeInvoice {
-  id          String        @id @default(uuid()) @db.Uuid
-  studentId   String        @db.Uuid
-  student     Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  sessionId   String        @db.Uuid
-  session     AcademicSession @relation(fields: [sessionId], references: [id])
-  periodLabel String
-  amountDue   Decimal       @db.Decimal(10, 2)
-  dueOn       DateTime      @db.Date
-  status      InvoiceStatus @default(PENDING)
-  createdAt   DateTime      @default(now())
+  id           String          @id @default(uuid()) @db.Uuid
+  studentId    String          @db.Uuid
+  student      Student         @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  sessionId    String          @db.Uuid
+  session      AcademicSession @relation(fields: [sessionId], references: [id])
+  periodLabel  String
+  /// Always equals the sum of its lines; enforced in the service inside one transaction.
+  amountDue    Decimal         @db.Decimal(10, 2)
+  dueOn        DateTime        @db.Date
+  /// Maintained inside the payment/void transaction, never recomputed lazily.
+  status       InvoiceStatus   @default(PENDING)
+  waivedReason String?
+  createdAt    DateTime        @default(now())
 
+  lines    FeeInvoiceLine[]
   payments FeePayment[]
 
   @@unique([studentId, sessionId, periodLabel])
   @@index([status, dueOn])
+}
+
+/// The draft invoiced one lump per period, so a receipt could not say what was paid for and the
+/// accounts team could not report per fee head. Lines are copied from FeeStructure at generation
+/// time and are then immutable: a later change to the structure must never rewrite a past invoice.
+model FeeInvoiceLine {
+  id        String     @id @default(uuid()) @db.Uuid
+  invoiceId String     @db.Uuid
+  invoice   FeeInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  feeHeadId String     @db.Uuid
+  feeHead   FeeHead    @relation(fields: [feeHeadId], references: [id])
+  amount    Decimal    @db.Decimal(10, 2)
+
+  @@unique([invoiceId, feeHeadId])
 }
 
 enum PaymentMode {
@@ -515,17 +620,29 @@ enum PaymentMode {
 model FeePayment {
   id           String      @id @default(uuid()) @db.Uuid
   invoiceId    String      @db.Uuid
-  invoice      FeeInvoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoice      FeeInvoice  @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
   amount       Decimal     @db.Decimal(10, 2)
   paidOn       DateTime    @db.Date
   mode         PaymentMode
   reference    String?
+  /// A User, not a Staff row: ACCOUNTS/OFFICE users are not necessarily on the teaching roster.
   recordedById String      @db.Uuid
-  recordedBy   Staff       @relation(fields: [recordedById], references: [id])
+  recordedBy   User        @relation(fields: [recordedById], references: [id])
   /// Gapless per session. Allocated inside the payment transaction, never from a count().
+  sessionId    String      @db.Uuid
+  receiptSeq   Int
+  /// Display form, "<session label>/<zero-padded seq>". Derived from receiptSeq at write time.
   receiptNo    String      @unique
+  /// Client-generated per submit. A double-click or a retried request returns the original receipt
+  /// instead of recording the money twice.
+  requestId    String      @unique @db.Uuid
+  /// Receipts are never deleted or renumbered (that would break gaplessness). A mistake is VOIDED:
+  /// the row and its number stay, and the amount stops counting toward the invoice.
+  voidedAt     DateTime?
+  voidReason   String?
   createdAt    DateTime    @default(now())
 
+  @@unique([sessionId, receiptSeq])
   @@index([invoiceId])
 }
 
@@ -534,8 +651,9 @@ model FeePayment {
 /// time two clerks save at once, and a money document with a duplicate number is an audit
 /// problem rather than a bug report.
 model ReceiptCounter {
-  sessionId String @id @db.Uuid
-  next      Int    @default(1)
+  sessionId String          @id @db.Uuid
+  session   AcademicSession @relation(fields: [sessionId], references: [id])
+  next      Int             @default(1)
 }
 
 // ---------------------------------------------------------------------------
@@ -546,14 +664,21 @@ model ReceiptCounter {
 /// offline sync idempotent: the device PUTs the whole day as one payload, so replaying a stale
 /// submission is safe and a flaky connection cannot leave a half-marked register.
 model AttendanceDay {
-  id          String   @id @default(uuid()) @db.Uuid
-  sectionId   String   @db.Uuid
-  section     Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  date        DateTime @db.Date
-  markedById  String   @db.Uuid
-  markedBy    Staff    @relation(fields: [markedById], references: [id])
-  markedAt    DateTime @default(now())
-  isFinalised Boolean  @default(false)
+  id             String   @id @default(uuid()) @db.Uuid
+  sectionId      String   @db.Uuid
+  section        Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  date           DateTime @db.Date
+  /// Last writer. A User, not a Staff row, so OFFICE corrections are representable.
+  markedById     String   @db.Uuid
+  markedBy       User     @relation(fields: [markedById], references: [id])
+  markedAt       DateTime @default(now())
+  /// Idempotency + staleness. lastMutationId makes an exact replay a no-op; capturedAt is when the
+  /// teacher's device took the marks, so a stale offline submission cannot silently overwrite a
+  /// newer correction made in the office.
+  lastMutationId String   @db.Uuid
+  capturedAt     DateTime
+  /// Once set, teachers can no longer overwrite; OFFICE can.
+  isFinalised    Boolean  @default(false)
 
   entries AttendanceEntry[]
 
@@ -573,7 +698,7 @@ model AttendanceEntry {
   dayId     String           @db.Uuid
   day       AttendanceDay    @relation(fields: [dayId], references: [id], onDelete: Cascade)
   studentId String           @db.Uuid
-  student   Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  student   Student          @relation(fields: [studentId], references: [id], onDelete: Restrict)
   status    AttendanceStatus
   note      String?
 
@@ -583,10 +708,10 @@ model AttendanceEntry {
 
 /// Keeps "absent" from meaning "the school was shut" in any report a parent can see.
 model Holiday {
-  id        String   @id @default(uuid()) @db.Uuid
-  date      DateTime @db.Date
+  id        String          @id @default(uuid()) @db.Uuid
+  date      DateTime        @db.Date
   label     String
-  sessionId String   @db.Uuid
+  sessionId String          @db.Uuid
   session   AcademicSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   @@unique([sessionId, date])
@@ -611,24 +736,31 @@ enum NoticeAudience {
   STUDENTS
 }
 
-/// publishUntil is the fix for April 2025 notices still being on the site in October 2026. An
-/// hourly sweep unpublishes anything past it.
+/// publishUntil is the fix for April 2025 notices still being on the site in October 2026.
+///
+/// Visibility is DERIVED at query time (isPublished AND publishFrom <= now AND (publishUntil IS NULL
+/// OR publishUntil > now)), so a missed or failed sweep can never leave an expired notice live. The
+/// hourly job exists only to trigger revalidation of the static public pages.
 model Notice {
+  id           String         @id @default(uuid()) @db.Uuid
   title        String
   slug         String         @unique
   body         String
   tag          NoticeTag
   audience     NoticeAudience @default(PUBLIC)
+  /// Draft vs live. Added to the draft so the office can save without publishing.
+  isPublished  Boolean        @default(false)
   publishFrom  DateTime
   publishUntil DateTime?
   isPinned     Boolean        @default(false)
-  id           String         @id @default(uuid()) @db.Uuid
+  createdById  String         @db.Uuid
+  createdBy    User           @relation(fields: [createdById], references: [id])
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
 
   targets NoticeTarget[]
 
-  @@index([audience, publishFrom, publishUntil])
+  @@index([audience, isPublished, publishFrom, publishUntil])
 }
 
 model NoticeTarget {
@@ -642,6 +774,8 @@ model NoticeTarget {
 }
 
 /// Every public string the office can edit, keyed ("home.hero", "about.mission"), audited.
+/// BLUEPRINT-001 says "versioned"; history is carried by AuditLog (before/after) rather than a
+/// second versions table nobody would query.
 model ContentBlock {
   key         String   @id
   data        Json
@@ -707,6 +841,10 @@ model MediaAsset {
   containsIdentifiableChild Boolean
   usage                     MediaUsage @default(UNPUBLISHED)
   uploadedById              String     @db.Uuid
+  uploadedBy                User       @relation(fields: [uploadedById], references: [id])
+  /// Sniffed from content at upload.
+  mimeType                  String
+  sizeBytes                 Int
   publishedAt               DateTime?
   createdAt                 DateTime   @default(now())
 
@@ -715,22 +853,29 @@ model MediaAsset {
   @@index([usage])
 }
 
+/// Matches the purpose wording on the bilingual slip in PHOTO-CONSENT-REQUIREMENTS.md section 4.
+enum ConsentScope {
+  PUBLIC_WEBSITE
+  WEBSITE_AND_SOCIAL
+}
+
 /// One row per child appearing in the asset. Setting withdrawnOn flips the asset to UNPUBLISHED
 /// and revalidates the public pages immediately -- the Act's "as easy to withdraw as to give",
 /// made literal.
 model MediaConsent {
-  id              String    @id @default(uuid()) @db.Uuid
-  assetId         String    @db.Uuid
-  asset           MediaAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
-  studentId       String    @db.Uuid
-  student         Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  guardianId      String    @db.Uuid
-  guardian        Guardian  @relation(fields: [guardianId], references: [id])
-  scope           String
-  grantedOn       DateTime  @db.Date
+  id              String       @id @default(uuid()) @db.Uuid
+  assetId         String       @db.Uuid
+  asset           MediaAsset   @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  studentId       String       @db.Uuid
+  student         Student      @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  guardianId      String       @db.Uuid
+  guardian        Guardian     @relation(fields: [guardianId], references: [id])
+  scope           ConsentScope
+  grantedOn       DateTime     @db.Date
   /// Scan of the signed slip.
   evidenceFileKey String?
-  recordedById    String    @db.Uuid
+  recordedById    String       @db.Uuid
+  recordedBy      User         @relation(fields: [recordedById], references: [id])
   withdrawnOn     DateTime?
   withdrawnReason String?
 
