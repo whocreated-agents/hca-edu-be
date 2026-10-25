@@ -1,5 +1,5 @@
 # Local dev stack. Every ${VAR:-default} fallback is a DEV-ONLY value; production must override all of them.
-name: hca
+name: hca-be
 
 services:
   db:
@@ -53,20 +53,6 @@ services:
       - "3001:3001"
     volumes:
       - uploads:/app/storage
-
-  web:
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile
-      args:
-        API_INTERNAL_URL: http://api:3001
-    restart: unless-stopped
-    depends_on:
-      - api
-    environment:
-      API_INTERNAL_URL: http://api:3001
-    ports:
-      - "3000:3000"
 
 volumes:
   pgdata:
