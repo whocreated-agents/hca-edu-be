@@ -124,6 +124,15 @@ describe('admin academic', () => {
       expect((activated.body as Body).user.role).toBe('TEACHER');
     });
 
+    
+    it('returns 409 conflict when creating staff with an email that already exists', async () => {
+      const res = await api()
+        .post('/api/v1/admin/staff')
+        .set(bearer(admin))
+        .send({ fullName: 'Dup Email', email: 'admin@hca.test', phone: '9876543299', designation: 'PGT', employeeCode: 'EMP-999', joinedOn: '2024-06-01', role: 'TEACHER' });
+      expect(res.status).toBe(409);
+    });
+
     it('only SUPER_ADMIN may create staff; OFFICE gets 403', async () => {
       await api()
         .post('/api/v1/admin/staff')

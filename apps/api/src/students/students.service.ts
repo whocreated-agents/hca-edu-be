@@ -261,7 +261,13 @@ export class StudentsService {
         }
         userId = existingUser.id;
       } else {
-        const user = await db.user.create({ data: { role: 'PARENT', status: 'INVITED', phone: input.phone } });
+        let user;
+        try {
+          user = await db.user.create({ data: { role: 'PARENT', status: 'INVITED', phone: input.phone } });
+        } catch (e) {
+          if (isUniqueViolation(e)) throw Problem.conflict('A user with that phone number already exists');
+          throw e;
+        }
         const { display, expiresAt } = await this.auth.createActivationCode(db, user.id, issuerId);
         activation = { code: display, expiresAt: expiresAt.toISOString(), userId: user.id, identifier: input.phone, displayName: input.fullName };
         userId = user.id;

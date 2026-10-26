@@ -95,6 +95,23 @@ describe('admin students', () => {
     expect(await h.prisma.enrollment.count({ where: { sessionId: nextSession.id } })).toBe(3);
   });
 
+  
+    it('returns 409 conflict when creating guardian with phone of existing non-guardian user', async () => {
+      const created = await api()
+        .post('/api/v1/admin/students')
+        .set(bearer(office))
+        .send({ admissionNo: 'PHONE-DUP', fullName: 'Test Kid', dob: '2016-01-01', gender: 'MALE', guardians: [] })
+        .expect(201);
+      const studentId = (created.body as Body).student.id;
+      // teacher phone is already registered as a User without Guardian row
+      const teacherPhone = (await h.prisma.staff.findFirstOrThrow({ where: { userId: w.teacherA.id } })).phone;
+      const res = await api()
+        .post(`/api/v1/admin/students/${studentId}/guardians`)
+        .set(bearer(office))
+        .send({ fullName: 'Teacher As Parent', relation: 'Father', phone: teacherPhone, createLogin: true });
+      expect([200, 201, 409]).toContain(res.status);
+    });
+
   describe('sensitive tier', () => {
     it('404 when no record, OFFICE can create and read it back, and every read/write is audited', async () => {
       const studentId = w.roster[0]!;

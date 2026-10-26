@@ -224,7 +224,13 @@ export class AcademicService {
 
   async createStaff(actor: Actor, body: StaffCreate, ip: string | null): Promise<StaffCreated> {
     return this.prisma.$transaction(async (tx) => {
-      const user = await tx.user.create({ data: { role: body.role, status: 'INVITED', email: body.email, emailVerifiedAt: new Date() } });
+      let user;
+      try {
+        user = await tx.user.create({ data: { role: body.role, status: 'INVITED', email: body.email, emailVerifiedAt: new Date() } });
+      } catch (e) {
+        if (isUniqueViolation(e)) throw Problem.conflict('A user with that email already exists');
+        throw e;
+      }
       let staff;
       try {
         staff = await tx.staff.create({
