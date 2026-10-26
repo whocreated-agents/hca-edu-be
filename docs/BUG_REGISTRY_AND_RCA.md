@@ -25,12 +25,12 @@
 | **BUG-002** | Unhandled unique constraint violation (`P2002`) on duplicate email in `createStaff` yields HTTP 500 | **P2 (Medium)** | `@hca/api` (`AcademicService`) | **RESOLVED** | Backend Engineer | `apps/api/test/academic.spec.ts` |
 | **BUG-003** | TOCTOU concurrency race during guardian user provisioning with concurrent identical phone | **P1 (High)** | `@hca/api` (`StudentsService`) | **RESOLVED** | Backend Engineer | `apps/api/test/students.spec.ts` |
 | **BUG-004** | Contract-Implementation drift: Media Asset & Photo Consent routes declared but not mounted | **P2 (Medium)** | `@hca/api` (`ContentController`) | **TRIAGED (DEFERRED)** | Backend Engineer | `packages/contracts/src/admin-content.ts` |
-| **BUG-005** | Widespread raw hex color styles bypassing `DESIGN-SPEC-001` tokens in UI components | **P1 (High)** | `@hca/web` (`AdminHeader`, `Footer`, etc.) | **OPEN (BLOCKS PR)** | Frontend Engineer | Static scan / Token verification |
-| **BUG-006** | Absence of automated test suite and regression tests in frontend repository | **P1 (High)** | `@hca/web` (Project Scaffold) | **OPEN (BLOCKS PR)** | Frontend Engineer | `npm test` script / Jest/Vitest suite |
-| **BUG-007** | Hardcoded academic session and calendar years in UI fallbacks and date logic | **P1 (High)** | `@hca/web` (`admissions`, `admin`, `attendance`) | **OPEN (BLOCKS PR)** | Frontend Engineer | Static audit against dynamic sessions |
-| **BUG-008** | Missing ESLint devDependency and `lint` npm script in frontend repository | **P2 (Medium)** | `@hca/web` (`package.json`) | **OPEN (BLOCKS PR)** | Frontend Engineer | `npm run lint` execution |
-| **BUG-009** | Offline Attendance Outbox swallows non-network 4xx HTTP rejections as queued items | **P1 (High)** | `@hca/web` (`offline-outbox.ts`) | **OPEN (BLOCKS PR)** | Frontend Engineer | Outbox error classification test |
-| **BUG-010** | Silent error suppression via empty `catch {}` and hardcoded phone fallback in CMS | **P2 (Medium)** | `@hca/web` (`admin/content/page.tsx`) | **OPEN (BLOCKS PR)** | Frontend Engineer | Error state handling audit |
+| **BUG-005** | Widespread raw hex color styles bypassing `DESIGN-SPEC-001` tokens in UI components | **P1 (High)** | `@hca/web` (`AdminHeader`, `Footer`, etc.) | **RESOLVED (VERIFIED)** | Frontend Engineer / SSE Verified | `test/token-scanner.test.ts` (0 raw hex values) |
+| **BUG-006** | Absence of automated test suite and regression tests in frontend repository | **P1 (High)** | `@hca/web` (Project Scaffold) | **RESOLVED (VERIFIED)** | Frontend Engineer / SSE Verified | Vitest suite (20/20 passing across 5 suites) |
+| **BUG-007** | Hardcoded academic session and calendar years in UI fallbacks and date logic | **P1 (High)** | `@hca/web` (`admissions`, `admin`, `attendance`) | **RESOLVED (VERIFIED)** | Frontend Engineer / SSE Verified | `test/token-scanner.test.ts` (dynamic year fallbacks) |
+| **BUG-008** | Missing ESLint devDependency and `lint` npm script in frontend repository | **P2 (Medium)** | `@hca/web` (`package.json`) | **RESOLVED (VERIFIED)** | Frontend Engineer / SSE Verified | `npm run lint` (0 errors, 0 warnings) |
+| **BUG-009** | Offline Attendance Outbox swallows non-network 4xx HTTP rejections as queued items | **P1 (High)** | `@hca/web` (`offline-outbox.ts`) | **RESOLVED (VERIFIED)** | Frontend Engineer / SSE Verified | `test/offline-outbox.test.ts` (4xx discard & alert) |
+| **BUG-010** | Silent error suppression via empty `catch {}` and hardcoded phone fallback in CMS | **P2 (Medium)** | `@hca/web` (`admin/content/page.tsx`) | **RESOLVED (VERIFIED)** | Frontend Engineer / SSE Verified | `test/token-scanner.test.ts` (error states & dynamic profile) |
 
 ---
 
@@ -156,7 +156,7 @@ The frontend repository (`hca-edu-web`) contains zero test files (`*.test.ts`, `
 5. *What is required?* Install Vitest/Jest with React Testing Library, configure `npm test`, and author unit tests for `offline-outbox.ts`, `api.ts`, and core form submissions.
 
 #### 3. Corrective Action & Implementation
-- Blocked PR #1 merge until test infrastructure and regression suites are added.
+- **Remediated & Verified (Commit `ea3dd71`):** Configured Vitest, JSDOM, and React Testing Library (`vitest.config.mts`). Added `"test"` script in `package.json`. Authored 5 test suites covering API errors, tokens, enquiry flows, UI fallbacks, and offline outbox (20/20 tests passing).
 
 ---
 
@@ -178,7 +178,7 @@ The frontend repository (`hca-edu-web`) contains zero test files (`*.test.ts`, `
 5. *What is the corrective action?* Remove all static year strings and replace with dynamic date computations or neutral text.
 
 #### 3. Corrective Action & Implementation
-- Requested changes on PR #1 with pinpoint replacements.
+- **Remediated & Verified (Commit `ea3dd71`):** Replaced static year strings (`2026-27`, `2027-28`, `2026`) with dynamic calendar calculations (`new Date().getFullYear()`) and dynamic session metadata in `admissions/page.tsx`, `admin/page.tsx`, and `portal/children/[id]/attendance/page.tsx`. Verified via `test/token-scanner.test.ts`.
 
 ---
 
@@ -198,7 +198,7 @@ The frontend repository (`hca-edu-web`) contains zero test files (`*.test.ts`, `
 5. *What is the fix?* Add `eslint` and `@eslint/js` to `devDependencies` and configure `"lint": "eslint ."` in `package.json`.
 
 #### 3. Corrective Action & Implementation
-- Assigned to Frontend Engineer to install devDependencies and add `"lint"` script.
+- **Remediated & Verified (Commit `ea3dd71`):** Installed `eslint`, `@eslint/js`, and `typescript-eslint`. Added `"lint": "eslint ."` to `package.json`. `npm run lint` runs cleanly with 0 errors and 0 warnings.
 
 ---
 
@@ -219,7 +219,7 @@ In `handleSubmitRegister()`, a generic `catch {}` block catches all errors and u
 5. *What is the correct behavior?* Only network failures (`!navigator.onLine` or fetch `TypeError`) should queue into the offline outbox. All `ApiError` instances must be presented to the user with the server detail message.
 
 #### 3. Corrective Action & Implementation
-- Assigned to Frontend Engineer with explicit code suggestion to inspect `err instanceof ApiError` and display error alerts instead of queueing.
+- **Remediated & Verified (Commit `ea3dd71`):** Updated `src/app/portal/attendance/page.tsx` to surface immediate error alerts on `ApiError (4xx)` rather than queueing. Updated `src/lib/offline-outbox.ts` `flushOutbox()` to permanently discard 4xx responses while retaining retry logic for network drops (TypeError) and 5xx errors. Verified via 6 tests in `test/offline-outbox.test.ts`.
 
 ---
 
@@ -239,4 +239,4 @@ In `AdminContentPage`, data fetching functions (`loadNotices`, `loadProfile`, an
 5. *What is the fix?* Bind error states to alert banners in the UI and remove hardcoded phone fallbacks.
 
 #### 3. Corrective Action & Implementation
-- Included in PR #1 `CHANGES_REQUESTED` diagnostic verdict.
+- **Remediated & Verified (Commit `ea3dd71`):** Removed empty `catch {}` blocks in `src/app/admin/content/page.tsx`, binding error states to alert banners. Removed hardcoded phone fallback, fetching dynamically from `SchoolProfile`. Verified via `test/token-scanner.test.ts`.
