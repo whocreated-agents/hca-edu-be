@@ -33,9 +33,12 @@ export const SessionUpdate = z.strictObject({
   endsOn: DateOnly.optional(),
   isAdmissionOpen: z.boolean().optional(),
 });
+export type SessionUpdate = z.input<typeof SessionUpdate>;
 
 export const HolidayDto = z.object({ id: Uuid, sessionId: Uuid, date: DateOnly, label: z.string() });
+export type HolidayDto = z.infer<typeof HolidayDto>;
 export const HolidayCreate = z.strictObject({ date: DateOnly, label: ShortText(100) });
+export type HolidayCreate = z.input<typeof HolidayCreate>;
 
 // ---- Sections ----------------------------------------------------------------------------
 
@@ -45,9 +48,13 @@ export const SectionCreate = z.strictObject({
   name: ShortText(10),
   classTeacherId: Uuid.nullable().optional(),
 });
+export type SectionCreate = z.input<typeof SectionCreate>;
 export const SectionUpdate = z.strictObject({ name: ShortText(10).optional(), classTeacherId: Uuid.nullable().optional() });
+export type SectionUpdate = z.input<typeof SectionUpdate>;
 export const SubjectTeacherDto = z.object({ id: Uuid, staffId: Uuid, staffName: z.string(), subject: z.string() });
+export type SubjectTeacherDto = z.infer<typeof SubjectTeacherDto>;
 export const SubjectTeacherAssign = z.strictObject({ staffId: Uuid, subject: ShortText(60) });
+export type SubjectTeacherAssign = z.input<typeof SubjectTeacherAssign>;
 
 // ---- Staff -------------------------------------------------------------------------------
 
@@ -70,9 +77,11 @@ export const StaffUpdate = z.strictObject({
   isActive: z.boolean().optional(),
   role: z.enum([Role.enum.TEACHER, Role.enum.OFFICE, Role.enum.ACCOUNTS]).optional(),
 });
+export type StaffUpdate = z.input<typeof StaffUpdate>;
 
 /** Creating a staff member returns the activation code ONCE; there is no other way to read it. */
 export const StaffCreated = z.object({ staff: StaffDto, activation: IssuedActivationCode });
+export type StaffCreated = z.infer<typeof StaffCreated>;
 
 export const adminAcademicRoutes = {
   sessions: route({

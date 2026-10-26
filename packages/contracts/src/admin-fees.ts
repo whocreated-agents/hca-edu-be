@@ -14,7 +14,9 @@ import { roles, route } from './route';
  */
 
 export const FeeHeadDto = z.object({ id: Uuid, name: z.string(), isRecurring: z.boolean() });
+export type FeeHeadDto = z.infer<typeof FeeHeadDto>;
 export const FeeHeadInput = z.strictObject({ name: ShortText(60), isRecurring: z.boolean().default(true) });
+export type FeeHeadInput = z.input<typeof FeeHeadInput>;
 
 export const FeeStructureRow = z.object({
   id: Uuid,
@@ -26,6 +28,7 @@ export const FeeStructureRow = z.object({
   frequency: FeeFrequency,
   dueDayOfMonth: z.number().int().nullable(),
 });
+export type FeeStructureRow = z.infer<typeof FeeStructureRow>;
 
 export const FeeStructureUpsert = z.strictObject({
   sessionId: Uuid,
@@ -40,6 +43,7 @@ export const FeeStructureUpsert = z.strictObject({
     }),
   ).max(20),
 });
+export type FeeStructureUpsert = z.input<typeof FeeStructureUpsert>;
 
 export const InvoiceGenerate = z.strictObject({
   sessionId: Uuid,
@@ -55,6 +59,7 @@ export const InvoiceGenerate = z.strictObject({
 }).refine((v) => [v.classLevelIds, v.sectionIds, v.studentIds].filter((x) => x && x.length).length === 1, {
   message: 'Give exactly one of classLevelIds, sectionIds, studentIds',
 });
+export type InvoiceGenerate = z.input<typeof InvoiceGenerate>;
 export const InvoiceGenerateResult = z.object({
   created: z.number().int(),
   /** Already billed for this period — generation is idempotent, so re-running is safe. */
@@ -62,6 +67,7 @@ export const InvoiceGenerateResult = z.object({
   /** Students whose class has no fee structure row for the chosen heads. */
   skippedNoStructure: z.number().int(),
 });
+export type InvoiceGenerateResult = z.infer<typeof InvoiceGenerateResult>;
 
 export const PaymentInput = z.strictObject({
   /** Client-generated once per submit. A retry/double-click with the same id returns the original receipt. */

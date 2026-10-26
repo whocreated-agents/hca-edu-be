@@ -58,12 +58,14 @@ export const NoticeInput = z
     path: ['targetSectionIds'],
     message: 'Public notices cannot be targeted at sections',
   });
+export type NoticeInput = z.input<typeof NoticeInput>;
 
 export const NoticeListQuery = PageQuery.extend({
   tag: NoticeTag.optional(),
   audience: NoticeAudience.optional(),
   state: z.enum(['live', 'scheduled', 'expired', 'draft']).optional(),
 });
+export type NoticeListQuery = z.input<typeof NoticeListQuery>;
 
 // ---- Content blocks, profile, facilities, stats --------------------------------------------
 
@@ -73,8 +75,10 @@ export const ContentBlockDto = z.object({
   updatedAt: IsoDateTime,
   updatedById: Uuid.nullable(),
 });
+export type ContentBlockDto = z.infer<typeof ContentBlockDto>;
 export const ContentBlockKeyParam = z.object({ key: z.string().regex(/^[a-z0-9]+(\.[a-z0-9-]+)+$/i, 'Like home.hero').max(100) });
 export const ContentBlockInput = z.strictObject({ data: z.record(z.string(), z.unknown()) });
+export type ContentBlockInput = z.input<typeof ContentBlockInput>;
 
 export const ProfileInput = z.strictObject({
   name: ShortText(150),
@@ -87,9 +91,12 @@ export const ProfileInput = z.strictObject({
   board: ShortText(100),
   registrationNo: ShortText(60),
 });
+export type ProfileInput = z.input<typeof ProfileInput>;
 
 export const FacilityInput = z.strictObject({ title: ShortText(100), description: LongText(1000), order: z.number().int().min(0).max(999) });
+export type FacilityInput = z.input<typeof FacilityInput>;
 export const StatInput = z.strictObject({ label: ShortText(100), value: ShortText(60), order: z.number().int().min(0).max(999) });
+export type StatInput = z.input<typeof StatInput>;
 
 // ---- Media + consent -----------------------------------------------------------------------
 

@@ -25,7 +25,9 @@ export const PublicProfile = z.object({
 export type PublicProfile = z.infer<typeof PublicProfile>;
 
 export const FacilityDto = z.object({ id: Uuid, title: z.string(), description: z.string(), order: z.number().int() });
+export type FacilityDto = z.infer<typeof FacilityDto>;
 export const StatDto = z.object({ id: Uuid, label: z.string(), value: z.string(), order: z.number().int() });
+export type StatDto = z.infer<typeof StatDto>;
 
 export const PublicContent = z.object({
   /** `key` -> arbitrary JSON authored in the CMS (e.g. `home.hero`, `about.mission`). */
@@ -66,6 +68,7 @@ export const PublicSession = z.object({
   /** The session new enquiries attach to; null means the admissions form must show "closed". */
   admissionOpen: SessionDto.nullable(),
 });
+export type PublicSession = z.infer<typeof PublicSession>;
 
 /** Stage 1: the six public fields. Nothing sensitive, ever. */
 export const EnquiryRequest = z.strictObject({
@@ -84,6 +87,7 @@ export const EnquiryReceipt = z.object({
   /** Short human reference the parent can quote on the phone. */
   reference: z.string(),
 });
+export type EnquiryReceipt = z.infer<typeof EnquiryReceipt>;
 
 // ---- Stage 2: tokenised application ---------------------------------------------------------
 

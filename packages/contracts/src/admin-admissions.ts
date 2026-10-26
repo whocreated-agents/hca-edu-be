@@ -39,6 +39,7 @@ export const ApplicationListItem = z.object({
   createdAt: IsoDateTime,
   decidedAt: IsoDateTime.nullable(),
 });
+export type ApplicationListItem = z.infer<typeof ApplicationListItem>;
 
 export const ApplicationDetail = ApplicationListItem.extend({
   enquiryId: Uuid,
@@ -58,6 +59,7 @@ export const InviteResult = z.object({
   /** True if an email was on the enquiry and the link was mailed to it. */
   emailed: z.boolean(),
 });
+export type InviteResult = z.infer<typeof InviteResult>;
 
 export const adminAdmissionRoutes = {
   enquiries: route({

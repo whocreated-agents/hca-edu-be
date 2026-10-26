@@ -21,6 +21,9 @@ export async function startApp(over: Record<string, string> = {}) {
     RATE_LIMIT_ENABLED: 'false',
     ARGON2_FAST: 'true',
     MAIL_TRANSPORT: 'memory',
+    FIELD_ENCRYPTION_KEY: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',
+    FILE_STORAGE_ROOT: `./var/test-storage/${randomUUID()}`,
+    FILE_SIGNING_SECRET: 'test-file-signing-secret-test-file-signing-0000',
     ...over,
   });
   const app: NestExpressApplication = await createApp(config);
