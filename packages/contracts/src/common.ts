@@ -67,6 +67,11 @@ export const PageQuery = z.object({
 });
 export const Page = <T extends z.ZodType>(item: T) =>
   z.object({ items: z.array(item), nextCursor: z.string().nullable() });
+/** The plain TS shape of a page of `T`, for service/controller signatures (`Page<StudentDto>` etc.). */
+export interface Page<T> {
+  items: T[];
+  nextCursor: string | null;
+}
 
 export const IdParam = z.object({ id: Uuid });
 export const Empty = z.object({});

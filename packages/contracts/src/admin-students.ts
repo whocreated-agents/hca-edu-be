@@ -34,8 +34,10 @@ export const GuardianInput = z.union([
 export type GuardianInput = z.input<typeof GuardianInput>;
 
 export const GuardianLinked = z.object({ guardian: GuardianDto, activation: IssuedActivationCode.nullable() });
+export type GuardianLinked = z.infer<typeof GuardianLinked>;
 
 export const EnrollInput = z.strictObject({ sectionId: Uuid, rollNo: z.number().int().min(1).max(999) });
+export type EnrollInput = z.input<typeof EnrollInput>;
 
 export const StudentCreate = z.strictObject({
   admissionNo: ShortText(30),
@@ -55,6 +57,7 @@ export const StudentCreated = z.object({
   student: StudentDto,
   guardians: z.array(GuardianLinked),
 });
+export type StudentCreated = z.infer<typeof StudentCreated>;
 
 export const StudentUpdate = z.strictObject({
   fullName: ShortText(120).optional(),
@@ -64,6 +67,7 @@ export const StudentUpdate = z.strictObject({
   admissionNo: ShortText(30).optional(),
   status: StudentStatus.optional(),
 });
+export type StudentUpdate = z.input<typeof StudentUpdate>;
 
 export const StudentDetail = z.object({
   student: StudentDto,
@@ -80,22 +84,26 @@ export const GuardianUpdate = z.strictObject({
   email: Email.nullable().optional(),
   occupation: z.string().trim().max(100).nullable().optional(),
 });
+export type GuardianUpdate = z.input<typeof GuardianUpdate>;
 
 export const EnrollmentUpdate = z.strictObject({
   sectionId: Uuid.optional(),
   rollNo: z.number().int().min(1).max(999).optional(),
   state: EnrollmentState.optional(),
 });
+export type EnrollmentUpdate = z.input<typeof EnrollmentUpdate>;
 
 export const PromoteInput = z.strictObject({
   toSessionId: Uuid,
   /** Each ACTIVE student in `fromSectionId` gets an enrolment in `toSectionId`, roll numbers continuing in prior order. */
   mappings: z.array(z.strictObject({ fromSectionId: Uuid, toSectionId: Uuid })).min(1).max(60),
 });
+export type PromoteInput = z.input<typeof PromoteInput>;
 export const PromoteResult = z.object({
   enrolled: z.number().int(),
   skippedAlreadyEnrolled: z.number().int(),
 });
+export type PromoteResult = z.infer<typeof PromoteResult>;
 
 // ---- Stage-3 sensitive tier ---------------------------------------------------------------
 
@@ -117,6 +125,7 @@ export const SensitiveUpsert = z.strictObject({
   /** The office confirms the parent consented to this collection (stage 3, after a seat is offered). */
   consentConfirmed: z.literal(true),
 });
+export type SensitiveUpsert = z.input<typeof SensitiveUpsert>;
 
 export const adminStudentRoutes = {
   students: route({

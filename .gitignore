@@ -21,3 +21,6 @@ Thumbs.db
 *.swp
 .idea/
 .vscode/
+
+# Local-volume file storage backend (storage.service.ts) and its test fixtures
+apps/api/var/

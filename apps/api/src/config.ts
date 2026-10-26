@@ -21,6 +21,21 @@ const Env = z.object({
   RATE_LIMIT_ENABLED: bool.default(true),
   ARGON2_FAST: bool.default(false),
   MAIL_TRANSPORT: z.enum(['smtp', 'memory']).default('smtp'),
+  /** 32 raw bytes, base64-encoded. AES-256-GCM key for StudentSensitive fields; see field-cipher.service.ts. */
+  FIELD_ENCRYPTION_KEY: z
+    .string()
+    .min(1)
+    .refine((v) => {
+      try {
+        return Buffer.from(v, 'base64').length === 32;
+      } catch {
+        return false;
+      }
+    }, 'FIELD_ENCRYPTION_KEY must be 32 bytes, base64-encoded'),
+  /** Root directory for the local-volume storage backend (ADR-001: swappable for S3 later). */
+  FILE_STORAGE_ROOT: z.string().min(1).default('./var/storage'),
+  /** HMAC key for signed file URLs (storage.service.ts). Reuses TOKEN_PEPPER's entropy bar. */
+  FILE_SIGNING_SECRET: z.string().min(32, 'FILE_SIGNING_SECRET must be at least 32 characters'),
 });
 export type Config = z.infer<typeof Env>;
 
