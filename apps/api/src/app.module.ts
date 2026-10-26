@@ -32,6 +32,9 @@ import { PublicController } from './public/public.controller';
 import { PublicService } from './public/public.service';
 import { FeesController } from './fees/fees.controller';
 import { FeesService } from './fees/fees.service';
+import { ContentController } from './content/content.controller';
+import { ContentService } from './content/content.service';
+import { AuditController } from './audit/audit.controller';
 
 // Controllers/providers are grouped by module below in comment headers; `public/` and this list
 // are deliberately a flat array (Nest's single-module style used throughout this app) rather than
@@ -56,6 +59,10 @@ export function appModule(config: Config) {
       PublicController,
       // Fee ledger (heads, structure, invoices, office-recorded payments with gapless receipts)
       FeesController,
+      // CMS (notices with expiry, content blocks, school profile, facilities, stats)
+      ContentController,
+      // Admin-only audit log read
+      AuditController,
     ],
     providers: [
       { provide: CONFIG, useValue: config },
@@ -75,6 +82,7 @@ export function appModule(config: Config) {
       AdmissionService,
       PublicService,
       FeesService,
+      ContentService,
       // Order matters: rate limit first (cheap), then access, then input validation.
       { provide: APP_GUARD, useClass: RateLimitGuard },
       { provide: APP_GUARD, useClass: AccessGuard },

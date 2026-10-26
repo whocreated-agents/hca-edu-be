@@ -3,14 +3,13 @@ import { activateParent, bearer, Harness, login, PASSWORD, resetDb, seedWorld, s
 
 type Body = Record<string, any>;
 /** Groups whose handlers exist in this PR; the rest are contract-only until the backend tasks land. */
-const IMPLEMENTED = new Set<string>(['auth', 'parent', 'attendance', 'adminAcademic', 'adminStudents', 'adminAdmissions', 'public']);
-// `adminFees`, `adminContent` and `adminAudit` land in later commits on this same branch, each
-// adding itself to this set once its controller is fully wired. `adminContent` will stay excluded
-// even then: this PR wires notices, content blocks, profile, facilities and stats, but NOT the
-// media/photograph-consent routes in the same contract group (MediaAsset/MediaConsent) -- that is
-// a separate DPDP-compliance workflow (file upload + cross-endpoint consent enforcement) out of
-// scope for WHO-6; see the PR description for the follow-up ticket. Including the whole group here
-// would fail the "every declared route is mounted" check below, since those specific routes have
+const IMPLEMENTED = new Set<string>(['auth', 'parent', 'attendance', 'adminAcademic', 'adminStudents', 'adminAdmissions', 'public', 'adminFees', 'adminAudit']);
+// `adminContent` is deliberately excluded: this PR wires notices, content blocks, profile,
+// facilities and stats, but NOT the media/photograph-consent routes in the same contract group
+// (MediaAsset/MediaConsent) -- that is a separate DPDP-compliance workflow (file upload +
+// cross-endpoint consent enforcement) out of scope for WHO-6; see the PR description for the
+// follow-up ticket. Including the whole group here would fail the "every declared route is mounted"
+// check below, since those specific routes have
 // no controller.
 
 describe('authorisation (anti-IDOR)', () => {
